@@ -46,10 +46,10 @@ for f in glob.glob(f'*gain*G*'):
 for f in glob.glob(f'*flux*fluxscale*'):
     shutil.rmtree(f)
 for visname in ['5GHz.ms','9GHz.ms']:
-    gfield = '0308-611'
+    gfield = '1420-679'
     calfields = ['1934-638',gfield]
     referenceant = 'CA01'
-    target = 'Short_GRB'
+    target = 'sgrb'
     allfields = ['1934-638',gfield,target]
     pfield = ['1934-638']
     bfield = ['1934-638']
@@ -70,6 +70,14 @@ for visname in ['5GHz.ms','9GHz.ms']:
                 extendpols=True, growaround=False, action='apply', flagbackup=True,
                 overwrite=True, writeflags=True, datacolumn='DATA')
     
+    plotms(vis=visname, xaxis='freq', yaxis='amp', showgui=False,
+            field='1934-638', plotfile='freqamp1934.jpg')
+    plotms(vis=visname, xaxis='freq', yaxis='amp', showgui=False,
+            field=gfield, plotfile=f'freqampgfield.jpg')
+    plotms(vis=visname, xaxis='time', yaxis='amp', showgui=False,
+            field='1934-638', plotfile='timeamp1934.jpg')
+    plotms(vis=visname, xaxis='time', yaxis='amp', showgui=False,
+            field=gfield, plotfile=f'timeampgfield.jpg')
     flagdata(vis=visname, mode='tfcrop', field=target,
             ntime='scan', timecutoff=6.0, freqcutoff=6.0, timefit='poly',
             freqfit='poly', extendflags=False, timedevscale=5., freqdevscale=5.,
