@@ -43,7 +43,7 @@ def doclean(roundnum,threshold):
             imagename=imagename, imsize=5120,
             cell='0.75arcsec', stokes='I', gridder='standard',
             deconvolver = 'hogbom', restoration=True,
-            weighting='briggs', robust = 0,
+            weighting='natural',
             niter=10000, threshold=threshold,
             savemodel='modelcolumn', pblimit=-1e-12, parallel = False, gain=0.08)
 

@@ -30,38 +30,37 @@ concat(vis,concatvis='9GHz.ms')
 for v in vis:
     shutil.rmtree(v)
 
+ # Remove files from previous runs, glob ensures we only delete it if it exists
+for f in glob.glob('gaincalspw*'):
+    shutil.rmtree(f)
+for f in glob.glob('*target*spw*'):
+    shutil.rmtree(f)
+for f in glob.glob(f'*jpg'):
+    os.remove(f)
+for f in glob.glob(f'*delay*K*'):
+    shutil.rmtree(f)
+for f in glob.glob(f'*bp*B*'):
+    shutil.rmtree(f)
+for f in glob.glob(f'*gain*G*'):
+    shutil.rmtree(f)
+for f in glob.glob(f'*flux*fluxscale*'):
+    shutil.rmtree(f)
 for visname in ['5GHz.ms','9GHz.ms']:
-    calfields = ['1934-638','1830-210']
-    referenceant = 'CA04'
-    target = 'GRB230217A'
-    allfields = ['1934-638','1830-210',target]
+    gfield = '0308-611'
+    calfields = ['1934-638',gfield]
+    referenceant = 'CA01'
+    target = 'Short_GRB'
+    allfields = ['1934-638',gfield,target]
     pfield = ['1934-638']
     bfield = ['1934-638']
-    gfield = '1830-210'
     minbaselines=3
     spw = visname[:-3]
     kfilebase = f'delayspw{spw}.K'
     bfilebase = f'bpspw{spw}.B'
     gfilebase = f'gainspw{spw}.G'
+    pregfilebase = f'gainspw{spw}.Gpre'
     fluxfilebase = f'fluxspw{spw}.fluxscale'
-    
-    
-    # Remove files from previous runs, glob ensures we only delete it if it exists
-    for f in glob.glob('gaincalspw*'):
-        shutil.rmtree(f)
-#     for f in glob.glob('*target*spw*'):
-#         shutil.rmtree(f)
-    for f in glob.glob(f'*delay*K*'):
-        shutil.rmtree(f)
-    for f in glob.glob(f'*bp*B*'):
-        shutil.rmtree(f)
-    for f in glob.glob(f'*gain*G*'):
-        shutil.rmtree(f)
-    for f in glob.glob(f'*flux*fluxscale*'):
-        shutil.rmtree(f)
     setjy(vis=visname,field="1934-638",scalebychan=True,standard="Stevens-Reynolds 2016")
-    flagdata(vis=visname, mode='manual',antenna='CA06')
-    flagdata(vis=visname, mode='manual',uvrange='<1500lambda')
     # flagdata(vis=visname, mode='manual',scan='0,44')
     # RFI issues in this one
     for f in calfields:
@@ -91,6 +90,7 @@ for visname in ['5GHz.ms','9GHz.ms']:
                 flagbackup=True, overwrite=True, writeflags=True)
     kfile = f'{kfilebase}'
     bfile = f'{bfilebase}'
+    pregfile = f'{pregfilebase}'
     gfile = f'{gfilebase}'
     fluxfile = f'{fluxfilebase}'
     for j,bf in enumerate(bfield):
@@ -98,9 +98,16 @@ for visname in ['5GHz.ms','9GHz.ms']:
             append=False
         else:
             append=True
+        gaincal(vis=visname, caltable = pregfile, field = bf, refant = referenceant,
+                    minblperant = minbaselines, solnorm = False,  gaintype = 'G',
+                    solint = 'inf', combine = 'scan', calmode='p',
+                    parang = False,append = append)
+        plotms(vis=pregfile, xaxis='time', yaxis='phase', coloraxis='corr', 
+                    field='1934-638', iteraxis='antenna',plotrange=[-1,-1,-180,180],
+                    showgui= False, gridrows=3, gridcols=2, plotfile='initialgain.jpg')
         gaincal(vis=visname, caltable = kfile, field = bf, refant = referenceant,
                     minblperant = minbaselines, solnorm = False,  gaintype = 'K',
-                    solint = 'inf', combine = '', parang = False,append = append)
+                    solint = 'inf', combine = 'scan', parang = False,append = append)
         
         bandpass(vis=visname, caltable = bfile,
                 field = bf, refant = referenceant,
@@ -111,16 +118,16 @@ for visname in ['5GHz.ms','9GHz.ms']:
     gaincal(vis=visname, caltable = gfile,
             field = '1934-638', refant = referenceant,
             minblperant = minbaselines, solnorm = False,  gaintype = 'G',
-            solint = '60s', combine = '', calmode='ap',
+            solint = 'inf', combine = '', calmode='ap',
             gaintable=[kfile, bfile],
             parang = False, append = False)
     gaincal(vis=visname, caltable = gfile,
             field = gfield, refant = referenceant,
             minblperant = minbaselines, solnorm = False,  gaintype = 'G',
-            solint = '60s', combine = '', calmode='ap',
+            solint = 'inf', combine = '', calmode='ap',
             gaintable=[kfile, bfile],
             parang = False, append = True)
-    myscale = fluxscale(vis=visname,caltable=gfile,fluxtable=fluxfile, reference='1934-638',transfer=[gfield],incremental=False, fitorder=2)
+    myscale = fluxscale(vis=visname,caltable=gfile,fluxtable=fluxfile, reference='1934-638',transfer=[gfield],incremental=False, fitorder=4)
     applycal(vis=visname, field='1934-638',
             selectdata=False, calwt=False, gaintable=[fluxfile,bfile,kfile],
             gainfield=['1934-638','',''],
@@ -195,6 +202,14 @@ for visname in ['5GHz.ms','9GHz.ms']:
                 writeflags=True, ntime='scan')
    
     tclean( vis=visname,field=gfield,datacolumn='corrected',imagename=f'gaincalspw{spw}',imsize=5120,cell='0.75arcsec',gridder='standard',pblimit=-1e-12,deconvolver='hogbom',weighting='natural',niter=1000,gain=0.1)
-    tclean( vis=visname,field=target,datacolumn='corrected',imagename=f'targetspw{spw}',imsize=5120,cell='0.75arcsec',gridder='standard',pblimit=-1e-12,deconvolver='hogbom',weighting='natural',niter=500,gain=0.1)
+    tclean( vis=visname,field=target,datacolumn='corrected',imagename=f'targetspw{spw}',imsize=5120,cell='0.75arcsec',gridder='standard',pblimit=-1e-12,deconvolver='hogbom',weighting='natural',niter=3000,gain=0.1)
 
+    msmd.close()
+    msmd.open(visname)
+    scans = msmd.scansforfield(target)
+    msmd.close()
+    
+    for i in range(0,len(scans),4):
+        s = f'{scans[i]}~{scans[min(i+4,len(scans)-1)]}'
+        tclean( vis=visname,field=target,datacolumn='corrected',imagename=f'targetspw{spw}scan{s}',scan=s,imsize=5120,cell='0.75arcsec',gridder='standard',pblimit=-1e-12,deconvolver='hogbom',weighting='natural',niter=1000,gain=0.1)
 
