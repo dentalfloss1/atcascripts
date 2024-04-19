@@ -46,13 +46,17 @@ for f in glob.glob(f'*gain*G*'):
 for f in glob.glob(f'*flux*fluxscale*'):
     shutil.rmtree(f)
 for visname in ['5GHz.ms','9GHz.ms','19GHz.ms']:
-    gfield = '2333-528'
-    calfields = ['1934-638',gfield]
+    fluxfield = '1934-638'
+    target = 'GRB240419A'
+    gfield = '0602-424'
+    if visname != '19GHz.ms':
+        bfield = "0727-115"
+        calfields = [fluxfield,bfield,gfield]
+    else:
+        bfield = fluxfield
+        calfields = [fluxfield,gfield]
     referenceant = 'CA01'
-    target = 'GRB240205B'
-    allfields = ['1934-638',gfield,target]
-    pfield = ['1934-638']
-    bfield = ['1934-638']
+    allfields = [fluxfield,gfield,target]
     minbaselines=3
     spw = visname[:-3]
     kfilebase = f'delayspw{spw}.K'
@@ -60,7 +64,7 @@ for visname in ['5GHz.ms','9GHz.ms','19GHz.ms']:
     gfilebase = f'gainspw{spw}.G'
     pregfilebase = f'gainspw{spw}.Gpre'
     fluxfilebase = f'fluxspw{spw}.fluxscale'
-    setjy(vis=visname,field="1934-638",scalebychan=True,standard="Stevens-Reynolds 2016")
+    setjy(vis=visname,field=fluxfield,scalebychan=True,standard="Stevens-Reynolds 2016")
     # flagdata(vis=visname, mode='manual',scan='0,44')
     # RFI issues in this one
     for f in calfields:
@@ -70,11 +74,11 @@ for visname in ['5GHz.ms','9GHz.ms','19GHz.ms']:
                 extendpols=True, growaround=False, action='apply', flagbackup=True,
                 overwrite=True, writeflags=True, datacolumn='DATA')
     plotms(vis=visname, xaxis='freq', yaxis='amp', showgui=False,
-            field='1934-638', plotfile=f'{spw}freqamp1934.jpg')
+            field=fluxfield, plotfile=f'{spw}freqamp1934.jpg')
     plotms(vis=visname, xaxis='freq', yaxis='amp', showgui=False,
             field=gfield, plotfile=f'{spw}freqampgfield.jpg')
     plotms(vis=visname, xaxis='time', yaxis='amp', showgui=False,
-            field='1934-638', plotfile=f'{spw}timeamp1934.jpg')
+            field=fluxfield, plotfile=f'{spw}timeamp1934.jpg')
     plotms(vis=visname, xaxis='time', yaxis='amp', showgui=False,
             field=gfield, plotfile=f'{spw}timeampgfield.jpg') 
     flagdata(vis=visname, mode='tfcrop', field=target,
@@ -100,49 +104,60 @@ for visname in ['5GHz.ms','9GHz.ms','19GHz.ms']:
     pregfile = f'{pregfilebase}'
     gfile = f'{gfilebase}'
     fluxfile = f'{fluxfilebase}'
-    for j,bf in enumerate(bfield):
-        if j==0:
-            append=False
-        else:
-            append=True
-        gaincal(vis=visname, caltable = pregfile, field = bf, refant = referenceant,
-                    minblperant = minbaselines, solnorm = False,  gaintype = 'G',
-                    solint = 'inf', combine = 'scan', calmode='p',
-                    parang = False,append = append)
-        plotms(vis=pregfile, xaxis='time', yaxis='phase', coloraxis='corr', 
-                    field='1934-638', iteraxis='antenna',plotrange=[-1,-1,-180,180],
-                    showgui= False, gridrows=3, gridcols=2, plotfile='initialgain.jpg')
-        gaincal(vis=visname, caltable = kfile, field = bf, refant = referenceant,
-                    minblperant = minbaselines, solnorm = False,  gaintype = 'K',
-                    solint = 'inf', combine = 'scan', parang = False,append = append)
-        
-        bandpass(vis=visname, caltable = bfile,
-                field = bf, refant = referenceant,
-                minblperant = minbaselines, solnorm = False,  solint = 'inf',
-                combine = 'scan', bandtype = 'B', fillgaps = 4,
-                gaintable = kfile, gainfield = bf,
-                parang = False, append = append)
+    gaincal(vis=visname, caltable = pregfile, field = bfield, refant = referenceant,
+                minblperant = minbaselines, solnorm = False,  gaintype = 'G',
+                solint = 'inf', combine = 'scan', calmode='p',
+                parang = False,append = append)
+    plotms(vis=pregfile, xaxis='time', yaxis='phase', coloraxis='corr', 
+                field=fluxfield, iteraxis='antenna',plotrange=[-1,-1,-180,180],
+                showgui= False, gridrows=3, gridcols=2, plotfile='initialgain.jpg')
+    gaincal(vis=visname, caltable = kfile, field = bfield, refant = referenceant,
+                minblperant = minbaselines, solnorm = False,  gaintype = 'K',
+                solint = 'inf', combine = 'scan', parang = False,append = False)
+    
+    bandpass(vis=visname, caltable = bfile,
+            field = bf, refant = referenceant,
+            minblperant = minbaselines, solnorm = False,  solint = 'inf',
+            combine = 'scan', bandtype = 'B', fillgaps = 4,
+            gaintable = kfile, gainfield = bf,
+            parang = False, append = append)
+    
     gaincal(vis=visname, caltable = gfile,
-            field = '1934-638', refant = referenceant,
+            field = fluxfield, refant = referenceant,
             minblperant = minbaselines, solnorm = False,  gaintype = 'G',
             solint = 'inf', combine = '', calmode='ap',
             gaintable=[kfile, bfile],
             parang = False, append = False)
+    if fluxfield!=bfield:
+        gaincal(vis=visname, caltable = gfile,
+                field = bfield, refant = referenceant,
+                minblperant = minbaselines, solnorm = False,  gaintype = 'G',
+                solint = 'inf', combine = '', calmode='ap',
+                gaintable=[kfile, bfile],
+                parang = False, append = True)
     gaincal(vis=visname, caltable = gfile,
             field = gfield, refant = referenceant,
             minblperant = minbaselines, solnorm = False,  gaintype = 'G',
             solint = 'inf', combine = '', calmode='ap',
             gaintable=[kfile, bfile],
             parang = False, append = True)
-    myscale = fluxscale(vis=visname,caltable=gfile,fluxtable=fluxfile, reference='1934-638',transfer=[gfield],incremental=False, fitorder=4)
-    applycal(vis=visname, field='1934-638',
+    if fluxfield!=bfield:
+        myscale = fluxscale(vis=visname,caltable=gfile,fluxtable=fluxfile, reference=fluxfield,transfer=[gfield,bfield],incremental=False, fitorder=4)
+    else:
+        myscale = fluxscale(vis=visname,caltable=gfile,fluxtable=fluxfile, reference=fluxfield,transfer=[gfield],incremental=False, fitorder=4)
+    applycal(vis=visname, field=fluxfield,
             selectdata=False, calwt=False, gaintable=[fluxfile,bfile,kfile],
-            gainfield=['1934-638','',''],
+            gainfield=[fluxfield,'',''],
             parang=False, interp=['nearest','',''])
     applycal(vis=visname, field=gfield,
             selectdata=False, calwt=False, gaintable=[fluxfile,bfile,kfile],
             gainfield=[gfield,'',''],
             parang=False, interp=['nearest','',''])
+    if fluxfield!=bfield:
+        applycal(vis=visname, field=bfield,
+                selectdata=False, calwt=False, gaintable=[fluxfile,bfile,kfile],
+                gainfield=[gfield,'',''],
+                parang=False, interp=['nearest','',''])
     
     applycal(vis=visname, field=target,
             selectdata=False, calwt=False, gaintable=[fluxfile,bfile,kfile],
