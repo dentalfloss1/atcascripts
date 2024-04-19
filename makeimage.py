@@ -5,7 +5,6 @@
 
 import os
 import glob
-import argparse
 import traceback
 import shutil, errno
 
@@ -28,33 +27,32 @@ logging.Formatter.converter = gmtime
 logger = logging.getLogger(__name__)
 logging.basicConfig(format="%(asctime)-15s %(levelname)s: %(message)s", level=logging.INFO)
 
-parser = argparse.ArgumentParser()
-parser.add_argument('msin',type=str)
-parser.add_argument('target',type=str)
-parser.add_argument('--refant',type=str, default='CA04')
-args = parser.parse_args()
-refant = args.refant
-msname = "target.ms"
-split(args.msname, outputvis = msname, field=args.target)
+minutes = 60
+hours = 3600
+
 
 def doclean(roundnum,threshold):
     imagename = msname.replace('.ms',f'_round{roundnum}')
     tclean(vis=msname, selectdata=False, datacolumn='corrected', 
             imagename=imagename, imsize=5120,
-            cell='0.75arcsec', stokes='I', gridder='standard',
+            cell='4arcsec', stokes='I', gridder='standard',
             deconvolver = 'hogbom', restoration=True,
-            weighting='natural',
+            weighting='briggs', robust = 0,
             niter=10000, threshold=threshold,
             savemodel='modelcolumn', pblimit=-1e-12, parallel = False, gain=0.08)
 
 def writegaintable(calnum,mysolint):
     prefix = msname.replace('.ms','_caltable')
     caltable = f'{prefix}{calnum}.G'
-    if calnum < 2:
+    if calnum < 3:
         calmode='p'
     else:
         calmode='ap'
-    gaincal(vis=msname, caltable=caltable, selectdata=False, refant = refant, solint=mysolint, solnorm=False, normtype='median', gaintype='G', calmode=calmode, append=False, parang=False)
+    if mysolint < 25*minutes:
+        combine="spw"
+    else:
+        combine="spw,scan"
+    gaincal(vis=msname, caltable=caltable, selectdata=False, refant = refant, solint=mysolint, solnorm=False, normtype='median', gaintype='G', calmode=calmode, append=False, parang=False, combine=combine)
 
 def apply(calnum):
     prefix = msname.replace('.ms','_caltable')
@@ -79,17 +77,28 @@ if __name__ == "__main__":
   #   except OSError as exc: # python >2.5
   #       if exc.errno in (errno.ENOTDIR, errno.EINVAL):
   #           shutil.copy(msname, f'{myfolder}/{msname}')
-  #       else: raise
-    thresholdlist = [1e-4,7e-5,5e-5,3e-5]
-    solint = ['inf','10min','5min']
+    for msin in ['5GHz.ms', '9GHz.ms']:
+        if msin=='5GHz.ms':
+            continue
+        refant = 'CA04'
+        prefix = msin.replace('.ms','')
+        msname = f'{prefix}target.ms'
+        target = 'sgrb'
+        if not os.path.exists(msname):
+            split(vis=msin, outputvis=msname, field=target)
+      #       else: raise
+        thresholdlist = [1e-3,5e-4,2e-4,1e-4,9e-5,8e-5,7e-5,6e-5,5e-5]
+        solint = [18*hours, 12*hours, 6*hours, 1*hours, 10*minutes,5*minutes, 1*minutes, 1*minutes]
 
-    for ind,thresh in enumerate(thresholdlist):
-        thisround = ind + 1
-        if thisround > 1:
-            writegaintable(ind-1,solint[ind-1])
-            apply(ind-1)
-            flagging()
-        doclean(thisround,thresh)
+        for ind,thresh in enumerate(thresholdlist):
+            thisround = ind + 1
+            if thisround==1:
+                continue
+            if thisround > 1:
+                writegaintable(ind-1,solint[ind-1])
+                apply(ind-1)
+                flagging()
+            doclean(thisround,thresh)
 
         
 
