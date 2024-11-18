@@ -6,6 +6,8 @@ import shutil
 import os 
 from casatools import image
 from math import pi
+import numpy as np
+import matplotlib.pyplot as plt
 
 trigger = datetime.datetime(2024, 2, 5, 22, 15, 8, 00)
 cell = '4arcsec'
@@ -16,23 +18,31 @@ parser.add_argument("--region",required=True,type=str)
 parser.add_argument("--niter",type=int,default=3000)
 parser.add_argument("--fbin",type=float, default=0)
 parser.add_argument("--tbin",type=float,default=1)
+parser.add_argument("--imsize",type=int,default=2560, help="imsize used in tclean")
 args = parser.parse_args()
 
+fbin = args.fbin
+tbin = args.tbin
 target = args.field
-visname = args.msname
+if args.msname[-1]=='/':
+    visname = args.msname[:-1]
+else:
+    visname = args.msname
 spw = args.msname.replace(".ms","")
 myimage = f"targetimage{spw}"
 splitvis = "target.ms"
 maskedim="maskedimage0"
 brightsrc = args.region.replace(".crtf","")+"_image"
 uvfitsfile = f"{args.field}.uvfits"
-uvfile = f"{args.field}.uv"
+uvfile = f"{args.region}_miriad.uv"
 mapfile = uvfile.replace("uv","imap")
 beamfile = uvfile.replace("uv","ibeam")
 modelfile = uvfile.replace("uv","model")
 restorefile = uvfile.replace("uv","image")
 pbcorfile = uvfile.replace("uv","pbcor")
-for f in glob.glob("target.ms"):
+for f in glob.glob(f"target.ms*"):
+    shutil.rmtree(f)
+for f in glob.glob(f"{uvfile.replace('uv','')}*"):
     shutil.rmtree(f)
 for f in glob.glob(f"{myimage}*"):
     shutil.rmtree(f)
@@ -105,11 +115,11 @@ def makebrightcutout(ind, brightrgn, imageroot, brightsrc):
         print('subtracted ',src,' from ',dst)
 if __name__=="__main__":
     split(vis=visname, outputvis="target.ms", field=target)
-    tclean( vis=splitvis,imagename=myimage,imsize=2560,cell=cell,gridder='standard',pblimit=-1e-12,deconvolver='hogbom',weighting='briggs',robust=0,niter=3000,gain=0.1,pbcor=True)
+    tclean( vis=splitvis,imagename=myimage,imsize=args.imsize,cell=cell,gridder='standard',pblimit=-1e-12,deconvolver='hogbom',weighting='briggs',robust=0,niter=args.niter,gain=0.1,pbcor=True)
     ia = image()
     imagefile=myimage
     makebrightcutout(0, args.region, myimage, brightsrc)
-    tclean( vis=splitvis,imagename=maskedim,imsize=2560,cell=cell,gridder='standard',pblimit=-1e-12,deconvolver='hogbom',weighting='briggs',robust=0,niter=3000,gain=0.1,pbcor=True,calcres=False,calcpsf=False,savemodel='modelcolumn')
+    tclean( vis=splitvis,imagename=maskedim,imsize=args.imsize,cell=cell,gridder='standard',pblimit=-1e-12,deconvolver='hogbom',weighting='briggs',robust=0,niter=args.niter,gain=0.1,pbcor=True,calcres=False,calcpsf=False,savemodel='modelcolumn')
     uvsub(splitvis)
     res = imfit(brightsrc+".image", region=args.region)
     comp = res['results']['component0']
@@ -159,23 +169,38 @@ if __name__=="__main__":
     flux = []
     fluxerr = []
     obsdate = []
+    startdate = []
+    stopdate = []
     for line in uvfitoutput:
-        if "Flux:" in line:
-            stripline = line.replace(b" ",b"").split(b"+/-")
+        if b"Flux:" in line:
+            print(line)
+            stripline = line.replace(b" ",b"").replace(b"Flux:",b"").split(b"+/-")
             flux.append(float(stripline[0]))
             fluxerr.append(float(stripline[1]))
-        if "Doing time range" in line:
+        if b"Doing time range" in line:
+            print(line)
             stripline = line.replace(b"Doing time range ",b"").replace(b" ",b"").split(b"-")
             start = datetime.datetime.strptime(stripline[0].decode(),"%y%b%d:%H:%M:%S.%f")
             stop = datetime.datetime.strptime(stripline[1].decode(),"%y%b%d:%H:%M:%S.%f")
             tdelt = stop-start
             obsdate.append(((start+tdelt/2)-trigger).total_seconds()/3600/24)
+            startdate.append(start)
+            stopdate.append(stop)
+    flux = flux[1:]
+    fluxerr = fluxerr[1:]
     fig = plt.figure()
     plt.scatter(obsdate,flux,color='black')
     plt.errorbar(obsdate,flux,yerr=fluxerr,fmt=' ',color='black')
-    plt.set_title(args.region)
+    ax = plt.gca()
+    ax.set_yscale('log')
+    ax.set_title(args.region)
+    ax.set_ylim(2e-5,1e-3)
     plt.savefig(f"{args.region}_lc.png")
     plt.close()
+    with open(f"{args.region}_lc.csv","w") as f:
+        f.write("date,flux,fluxerr\n")
+        for t1,t2,flux,fluxerr in zip(startdate,stopdate,flux,fluxerr):
+           f.write(f"{t1.strftime('%Y-%m-%d %H:%M:%S.%f')},{t2.strftime('%Y-%m-%d %H:%M:%S.%f')},9,{flux*1e6},{fluxerr*1e6},0,X\n")
 
 
 
