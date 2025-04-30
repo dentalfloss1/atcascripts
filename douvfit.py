@@ -4,11 +4,14 @@ import subprocess
 import glob
 import shutil
 import os 
+import io
+from contextlib import redirect_stderr
 from casatools import image
 from math import pi
 import numpy as np
 import matplotlib.pyplot as plt
 
+start_epoch = datetime.datetime(1858, 11, 17, 00, 00, 00, 00)
 trigger = datetime.datetime(2024, 2, 5, 22, 15, 8, 00)
 cell = '4arcsec'
 parser = argparse.ArgumentParser()
@@ -16,13 +19,13 @@ parser.add_argument("--field",required=True, type=str)
 parser.add_argument("--msname",required=True,type=str)
 parser.add_argument("--region",required=True,type=str)
 parser.add_argument("--niter",type=int,default=3000)
-parser.add_argument("--fbin",type=float, default=0)
-parser.add_argument("--tbin",type=float,default=1)
+parser.add_argument("--timeslices",type=int,default=1)
 parser.add_argument("--imsize",type=int,default=2560, help="imsize used in tclean")
+parser.add_argument("--subrounds",type=int, default=1, help="Number of rounds of subtraction")
+parser.add_argument("--scan",action="store_true", help="uvfit each scan")
+
 args = parser.parse_args()
 
-fbin = args.fbin
-tbin = args.tbin
 target = args.field
 if args.msname[-1]=='/':
     visname = args.msname[:-1]
@@ -68,7 +71,7 @@ def degtodms(dec):
     frac, whole = np.modf(dec)
     minutes  = np.abs(int(frac*60))
     seconds = (np.abs(frac*60) - np.abs(minutes))*60
-    return f"{int(whole)}:{minutes:02}:{seconds:08.5f}"
+    return f"{int(whole)}.{minutes:02}.{seconds:08.5f}"
 
 def maskpix(imagefile,r1):
     myimage = ia.newimagefromfile(imagefile)
@@ -113,20 +116,20 @@ def makebrightcutout(ind, brightrgn, imageroot, brightsrc, masked):
         print('subtracted ',src,' from ',dst)
 if __name__=="__main__":
     lastvis = visname
-    for iteration in range(1,4):
+    for iteration in range(1,args.subrounds+1):
         splitvis = "target_round"+str(iteration)+".ms"
         split(vis=lastvis, outputvis=splitvis, field=target,antenna="!CA06")
         curimage = myimage+"_round"+str(iteration)
         curmasked = maskedim+"_round"+str(iteration)
         curbright = brightsrc+"_round"+str(iteration)
-        tclean( vis=splitvis,imagename=curimage,imsize=args.imsize,cell=cell,gridder='standard',pblimit=-1e-12,deconvolver='hogbom',weighting='uniform',niter=args.niter,gain=0.1,pbcor=True)
+        tclean( vis=splitvis,imagename=curimage,imsize=args.imsize,cell=cell,gridder='standard',pblimit=-1e-12,deconvolver='hogbom',weighting='briggs',robust=0,niter=args.niter,gain=0.1,pbcor=True)
         ia = image()
         makebrightcutout(0, args.region, curimage, curbright, curmasked)
-        tclean( vis=splitvis,imagename=curmasked,imsize=args.imsize,cell=cell,gridder='standard',pblimit=-1e-12,deconvolver='hogbom',weighting='uniform',niter=args.niter,gain=0.1,pbcor=True,calcres=False,calcpsf=False,savemodel='modelcolumn')
+        tclean( vis=splitvis,imagename=curmasked,imsize=args.imsize,cell=cell,gridder='standard',pblimit=-1e-12,deconvolver='hogbom',weighting='briggs',robust=0,niter=args.niter,gain=0.1,pbcor=True,calcres=False,calcpsf=False,savemodel='modelcolumn')
         uvsub(splitvis)
-        tclean( vis=splitvis,imagename=curimage+"_subtracted",imsize=args.imsize,cell=cell,gridder='standard',pblimit=-1e-12,deconvolver='hogbom',weighting='uniform',niter=args.niter,gain=0.1,pbcor=True)
+        tclean( vis=splitvis,imagename=curimage+"_subtracted",imsize=args.imsize,cell=cell,gridder='standard',pblimit=-1e-12,deconvolver='hogbom',weighting='briggs',robust=0,niter=args.niter,gain=0.1,pbcor=True)
         lastvis = splitvis
-
+    
     res = imfit(curimage+"_subtracted"+".image", region=args.region) 
     comp = res['results']['component0'] 
     fluxguess = comp['peak']['value']
@@ -143,58 +146,67 @@ if __name__=="__main__":
      ####### create ra string as hms and dec string as dms
     ra = degtohms(ra)
     dec = degtodms(dec)
-    exportuvfits(vis=splitvis, field=args.field, fitsfile=uvfitsfile)
-    mirfits = ["fits",f"in={uvfitsfile}","op=uvin",f"out={uvfile}"]
-    print(mirfits)
-    out = subprocess.run(mirfits)
-    mirinvert = ["invert",f"vis={uvfile}",f"map={mapfile}",f"beam={beamfile}","stokes=i","options=mfs,sdb","robust=0","imsize=6,6,beam","cell=5,5,res"]
-    print(mirinvert)
-    out = subprocess.run(mirinvert)
-    mirmfclean = ["mfclean",f"map={mapfile}",f"beam={beamfile}",f"out={modelfile}","options=negstop,positive",f"niters={args.niter}","cutoff=0.00005",'region="percentage(40)"']
-    print(mirmfclean)
-    out = subprocess.run(mirmfclean)
-    mirrestor = ["restor",f"model={modelfile}",f"beam={beamfile}",f"map={mapfile}",f"out={restorefile}"]
-    print(mirrestor)
-    out = subprocess.run(mirrestor)
-    mirlinmos = ["linmos",f"in={restorefile}",f"out={pbcorfile}"]
-    print(mirlinmos)
-    out = subprocess.run(mirlinmos)
-    mirimpos = ["impos",f"in={uvfile}",f"coord={ra},{dec}",f"type=hms,dms"]
-    out = subprocess.check_output(mirimpos)
-    print(out)
-    imposoutput = out.split(b'\n')
-    for line in imposoutput:
-        if (b'RA---NCP' in line) and (b'arcsec' in line):
-            xoff = float(line.split(b" ")[-2])
-        if b'DEC--NCP' in line and (b'arcsec' in line):
-            yoff = float(line.split(b" ")[-2])
-    miruvfit = ["uvfit",f"vis={uvfile}","object=point",f"spar={fluxguess},{xoff},{yoff}",f"bin={fbin},{tbin}"]
-    out = subprocess.check_output(miruvfit)
-    print(out)
-    uvfitoutput = out.split(b'\n')
+    starttimes = []
+    stoptimes = []
+    msmd.close()
+    msmd.open(visname)
+    fnum = msmd.fieldsforname(target)
+    if args.scan:
+        scans = msmd.scansforfield(fnum[0])
+        for s in scans:
+            timearray = msmd.timesforscan(s)
+            starttimes.append(timearray.min())
+            stoptimes.append(timearray.max())
+        starttimes = np.array(starttimes)
+        stoptimes = np.array(stoptimes)
+    else:
+        alltimes = msmd.timesforfield(fnum[0])
+        alltimes = np.linspace(alltimes.min(), alltimes.max(), args.timeslices+1)
+        starttimes = alltimes[:-1]
+        stoptimes = alltimes[1:]
+    msmd.close()
+    shiftedphase = splitvis.replace(".ms","phaseshift.ms")
+    phaseshift(vis=splitvis,outputvis=shiftedphase,field=args.field, phasecenter=f"J2000 {ra} {dec}")
     flux = []
     fluxerr = []
-    obsdate = []
-    startdate = []
-    stopdate = []
-    for line in uvfitoutput:
-        if b"Flux:" in line:
-            print(line)
-            stripline = line.replace(b" ",b"").replace(b"Flux:",b"").split(b"+/-")
-            flux.append(float(stripline[0]))
-            fluxerr.append(float(stripline[1]))
-        if b"Doing time range" in line:
-            print(line)
-            stripline = line.replace(b"Doing time range ",b"").replace(b" ",b"").split(b"-")
-            start = datetime.datetime.strptime(stripline[0].decode(),"%y%b%d:%H:%M:%S.%f")
-            stop = datetime.datetime.strptime(stripline[1].decode(),"%y%b%d:%H:%M:%S.%f")
-            tdelt = stop-start
-            obsdate.append(((start+tdelt/2)-trigger).total_seconds()/3600/24)
-            startdate.append(start)
-            stopdate.append(stop)
-    flux = np.array(flux[1:])
-    fluxerr = np.array(fluxerr[1:])
+    startlist = []
+    stoplist = []
+    obslist = []
+    for T,(t1,t2) in enumerate(zip(starttimes,stoptimes)):
+        t1dt = (start_epoch + datetime.timedelta(seconds=t1))
+        t2dt = (start_epoch + datetime.timedelta(seconds=t2))
+        start = t1dt.strftime("%Y/%m/%d/%H:%M:%S")
+        stop = t2dt.strftime("%Y/%m/%d/%H:%M:%S")
+        flux.append(-1)
+        fluxerr.append(-1)
+        startlist.append(t1dt)
+        stoplist.append(t2dt)
+        obslength = t2dt - t1dt
+        obslist.append( (t1dt - trigger).total_seconds() +  (obslength/2).total_seconds())
+#         with redirect_stderr(io.StringIO()) as f:
+        print(f'---{T}----')
+        uvmodelfit(vis=shiftedphase, timerange=f"{start}~{stop}", field=args.field, niter=10, comptype='P', sourcepar=[fluxguess,0.1,0.1],outfile=f'complistchunk{T}.cl')
+        tclean( vis=shiftedphase,timerange=f"{start}~{stop}",imagename=curimage+"_subtracted_chunk"+str(T),imsize=args.imsize,cell=cell,gridder='standard',pblimit=-1e-12,deconvolver='hogbom',weighting='briggs',robust=0,niter=args.niter,gain=0.1,pbcor=True)
+        print('--------')
+#         print('----')
+#         print(f.getvalue())
+#         print('----')
+#         input("presskey")
+#         for line in f.getvalue().split('\n'):
+#             if "I = " in line:
+#                flux.append(line.split(" +/-  ")[0])
+#                fluxerr.append(line.split(" +/-  ")[0])
+#                startlist.append(t1dt)
+#                stoplist.append(t2dt)
+#                obslength = t2dt - t1dt
+#                obslist.append( (t1dt - trigger).total_seconds() +  (obslength/2).total_seconds())
+# 
+# 
+#         
+    flux = np.array(flux)
+    fluxerr = np.array(fluxerr)
     fluxerr = np.sqrt(fluxerr**2 + (0.05*flux)**2)
+    obsdate = np.array(obslist)
     fig = plt.figure()
     plt.scatter(obsdate,flux,color='black')
     plt.errorbar(obsdate,flux,yerr=fluxerr,fmt=' ',color='black')
@@ -205,8 +217,8 @@ if __name__=="__main__":
     plt.savefig(f"{args.region}_lc.png")
     plt.close()
     with open(f"{args.region}_lc.csv","w") as f:
-        f.write("date,flux,fluxerr\n")
-        for t1,t2,flux,fluxerr in zip(startdate,stopdate,flux,fluxerr):
+        f.write("t1,t2,flux,fluxerr\n")
+        for t1,t2,flux,fluxerr in zip(startlist,stoplist,flux,fluxerr):
            f.write(f"{t1.strftime('%Y-%m-%d %H:%M:%S.%f')},{t2.strftime('%Y-%m-%d %H:%M:%S.%f')},9,{flux*1e6},{fluxerr*1e6},0,X\n")
 
 
