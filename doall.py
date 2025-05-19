@@ -19,27 +19,27 @@ for f in glob.glob('34GHz*.ms*'):
 
 # flagdata(vis=origvis, mode='manual',field='focus')
 
-split(origvis, spw='0~1', outputvis = '19GHz.ms',datacolumn='ALL')
+# split(origvis, spw='0~1', outputvis = '19GHz.ms',datacolumn='ALL')
 
-split(origvis, spw='2', outputvis = '5GHz.ms',datacolumn='ALL')
-vis = '5GHz.ms'
-for i,c in enumerate(range(0,2048,1024)):
-    split(vis='5GHz.ms', spw=f'0:{c}~{c+1023}', datacolumn='ALL',outputvis=f'5GHzspw{i}.ms')
-shutil.rmtree('5GHz.ms')
-vis = [f"5GHzspw{i}.ms" for i in range(2)]
-concat(vis,concatvis='5GHz.ms')
-for v in vis:
-    shutil.rmtree(v)
+split(origvis, spw='0', outputvis = '5GHz.ms',datacolumn='ALL')
+# vis = '5GHz.ms'
+# for i,c in enumerate(range(0,2048,1024)):
+#     split(vis='5GHz.ms', spw=f'0:{c}~{c+1023}', datacolumn='ALL',outputvis=f'5GHzspw{i}.ms')
+# shutil.rmtree('5GHz.ms')
+# vis = [f"5GHzspw{i}.ms" for i in range(2)]
+# concat(vis,concatvis='5GHz.ms')
+# for v in vis:
+#     shutil.rmtree(v)
 
-split(origvis, spw='3', outputvis = '9GHz.ms',datacolumn='ALL')
-vis = '9GHz.ms'
-for i,c in enumerate(range(0,2048,1024)):
-    split(vis='9GHz.ms', spw=f'0:{c}~{c+1023}', datacolumn='ALL',outputvis=f'9GHzspw{i}.ms')
-shutil.rmtree('9GHz.ms')
-vis = [f"9GHzspw{i}.ms" for i in range(2)]
-concat(vis,concatvis='9GHz.ms')
-for v in vis:
-    shutil.rmtree(v)
+split(origvis, spw='1', outputvis = '9GHz.ms',datacolumn='ALL')
+# vis = '9GHz.ms'
+# for i,c in enumerate(range(0,2048,1024)):
+#     split(vis='9GHz.ms', spw=f'0:{c}~{c+1023}', datacolumn='ALL',outputvis=f'9GHzspw{i}.ms')
+# shutil.rmtree('9GHz.ms')
+# vis = [f"9GHzspw{i}.ms" for i in range(2)]
+# concat(vis,concatvis='9GHz.ms')
+# for v in vis:
+#     shutil.rmtree(v)
 # split(origvis, spw='4', outputvis = '2GHz.ms',datacolumn='ALL')
 # vis = '2GHz.ms'
 # for i,c in enumerate(range(0,2048,1024)):
@@ -69,13 +69,13 @@ for f in glob.glob(f'*pol*D*'):
     shutil.rmtree(f)
 for f in glob.glob(f'*flux*fluxscale*'):
     shutil.rmtree(f)
-for visname in ['19GHz.ms','5GHz.ms','9GHz.ms']:
+for visname in ['5GHz.ms','9GHz.ms']:
     spw = visname[:-3]
     msmd.open(origvis)
     nchan = len(msmd.chanfreqs(0))
     referenceant = msmd.antennanames()[0]
-    target = "GRB240205B"
-    gfield = "2333-528"
+    target = "GRB230911C"
+    gfield = "1458-391"
     fluxfield = "1934-638"
     if spw=='19GHz':
         bfield='1921-293'
@@ -102,6 +102,7 @@ for visname in ['19GHz.ms','5GHz.ms','9GHz.ms']:
         setjy(vis=visname,field=fluxfield,scalebychan=True,standard="Stevens-Reynolds 2016")
     # flagdata(vis=visname, mode='manual',scan='0,44')
     # RFI issues in this one
+    flagdata(vis=visname, mode='shadow')
     for f in calfields:
         flagdata(vis=visname, mode='tfcrop', field=f,
                 ntime='scan', timecutoff=5.0, freqcutoff=5.0, timefit='line',
@@ -145,17 +146,17 @@ for visname in ['19GHz.ms','5GHz.ms','9GHz.ms']:
     append=False
     gaincal(vis=visname, caltable = pregfile, field = bfield, refant = referenceant,
                 minblperant = minbaselines, solnorm = False,  gaintype = 'G',
-                solint = 'int', combine = '', calmode='p',
+                solint = 60, combine = '', calmode='p',
                 parang = False,append = append)
     plotms(vis=pregfile, xaxis='time', yaxis='phase', coloraxis='corr', 
                 field=bfield, iteraxis='antenna',plotrange=[-1,-1,-180,180],
                 showgui= False, gridrows=3, gridcols=2, plotfile='initialgain.jpg')
     gaincal(vis=visname, caltable = kfile, field = bfield, refant = referenceant,
                 minblperant = minbaselines, solnorm = False,  gaintype = 'K',
-                solint = 'int', combine = '', parang = False,append = False)
+                solint = 60, combine = '', parang = False,append = False)
     bandpass(vis=visname, caltable = bfile,
             field = bfield, refant = referenceant,
-            minblperant = minbaselines, solnorm = False,  solint = 'int',
+            minblperant = minbaselines, solnorm = False,  solint = 60,
             combine = '', bandtype = 'B', fillgaps = 4,
             gaintable = [kfile], gainfield = bfield,
             parang = False, append = append)
@@ -165,20 +166,20 @@ for visname in ['19GHz.ms','5GHz.ms','9GHz.ms']:
     gaincal(vis=visname, caltable = gfile,
             field = fluxfield, refant = referenceant,
             minblperant = minbaselines, solnorm = False,  gaintype = 'G',
-            solint = 'int', combine = '', calmode='ap',
+            solint = 60, combine = '', calmode='ap',
             gaintable=[kfile,bfile,kxfile],gainfield=[bfield,bfield,gfield],
             parang = False, append = False)
     if fluxfield!=bfield:
         gaincal(vis=visname, caltable = gfile,
                 field = bfield, refant = referenceant,
                 minblperant = minbaselines, solnorm = False,  gaintype = 'G',
-                solint = 'int', combine = '', calmode='ap',
+                solint = 60, combine = '', calmode='ap',
                 gaintable=[kfile,bfile,kxfile],gainfield=[bfield,bfield,gfield],
                 parang = False, append = True)
     gaincal(vis=visname, caltable = gfile,
             field = gfield, refant = referenceant,
             minblperant = minbaselines, solnorm = False,  gaintype = 'G',
-            solint = 'int', combine = '', calmode='ap',
+            solint = 60, combine = '', calmode='ap',
             gaintable=[kfile,bfile,kxfile],gainfield=[bfield,bfield,gfield],
             parang = False, append = True)
     from casarecipes.atcapolhelpers import qufromgain
@@ -197,34 +198,34 @@ for visname in ['19GHz.ms','5GHz.ms','9GHz.ms']:
     polfile2 = f'{polfilebase}1'
     gaincal(vis=visname, caltable = pregfile2, field = bfield, refant = referenceant,
                 minblperant = minbaselines, solnorm = False,  gaintype = 'G',
-                solint = 'int', combine = '', calmode='p',
+                solint = 60, combine = '', calmode='p',
                 parang = False,append = append, gaintable=[bfile,kxfile,gfile,polfile])
     plotms(vis=pregfile2, xaxis='time', yaxis='phase', coloraxis='corr', 
                 field=bfield, iteraxis='antenna',plotrange=[-1,-1,-180,180],
                 showgui= False, gridrows=3, gridcols=2, plotfile='initialgain2.jpg')
     bandpass(vis=visname, caltable = bfile2,
             field = bfield, refant = referenceant,
-            minblperant = minbaselines, solnorm = False,  solint = 'int',
+            minblperant = minbaselines, solnorm = False,  solint = 60,
             combine = '', bandtype = 'B', fillgaps = 4,
             gaintable = [gfile,polfile], gainfield = [bfield,bfield],
             parang = False, append = append)
     gaincal(vis=visname, caltable = gfile2,
             field = fluxfield, refant = referenceant,
             minblperant = minbaselines, solnorm = False,  gaintype = 'G',
-            solint = 'int', combine = '', calmode='ap',
+            solint = 60, combine = '', calmode='ap',
             gaintable=bfile2,
             parang = False, append = False)
     if fluxfield!=bfield:
         gaincal(vis=visname, caltable = gfile2,
                 field = bfield, refant = referenceant,
                 minblperant = minbaselines, solnorm = False,  gaintype = 'G',
-                solint = 'int', combine = '', calmode='ap',
+                solint = 60, combine = '', calmode='ap',
                 gaintable=bfile2,
                 parang = False, append = True)
     gaincal(vis=visname, caltable = gfile2,
             field = gfield, refant = referenceant,
             minblperant = minbaselines, solnorm = False,  gaintype = 'G',
-            solint = 'int', combine = '', calmode='ap',
+            solint = 60, combine = '', calmode='ap',
             gaintable=bfile2,smodel=smodel,
             parang = False, append = True)
     polcal(vis=visname,caltable=polfile2,field=bfield,refant=referenceant,gaintable=[bfile2,gfile2],poltype='D',solint='inf')
@@ -235,21 +236,21 @@ for visname in ['19GHz.ms','5GHz.ms','9GHz.ms']:
     applycal(vis=visname, field=fluxfield,
             selectdata=False, calwt=False, gaintable=[fluxfile2,bfile2,polfile2],
             gainfield=[fluxfield,'',''],
-            parang=True, interp=['nearest','',''])
+            parang=True, interp=['linear','',''])
     applycal(vis=visname, field=gfield,
             selectdata=False, calwt=False, gaintable=[fluxfile2,bfile2,polfile2],
             gainfield=[gfield,'',''],
-            parang=True, interp=['nearest','',''])
+            parang=True, interp=['linear','',''])
     if fluxfield!=bfield:
         applycal(vis=visname, field=bfield,
                 selectdata=False, calwt=False, gaintable=[fluxfile2,bfile2,polfile2],
                 gainfield=[gfield,'',''],
-                parang=True, interp=['nearest','',''])
+                parang=True, interp=['linear','',''])
     
     applycal(vis=visname, field=target,
             selectdata=False, calwt=False, gaintable=[fluxfile2,bfile2,polfile2],
             gainfield=[gfield,'',''],
-            parang=True, interp=['nearest',''])
+            parang=True, interp=['linear',''])
     
     
     # now flag using 'rflag' option  for flux, phase cal and extra fields tight flagging
@@ -310,51 +311,12 @@ for visname in ['19GHz.ms','5GHz.ms','9GHz.ms']:
                 flagnearfreq=False, action="apply", flagbackup=True, overwrite=True,
                 writeflags=True, ntime='scan')
 
-cell=["0.04arcsec","0.04arcsec","0.2arcsec","0.2arcsec","0.1arcsec","0.1arcsec","0.2arcsec","0.1arcsec"]
-imsize=8192
-spw=["0","1","0","1","0","1","",""]
-freqs = ["16.7GHz","21.2GHz","5GHz","6GHz","8.5GHz","9.5GHz","5.5GHz","9.0GHz"]
-vis=['19GHz.ms','19GHz.ms','5GHz.ms','5GHz.ms','9GHz.ms','9GHz.ms',"5GHz.ms","9GHz.ms"]
+cell=["2arcsec","2arcsec"]
+imsize=5120
+spw=["",""]
+freqs = ["5.5GHz","9.0GHz"]
+vis=["5GHz.ms","9GHz.ms"]
 for c,s,f,v in zip(cell,spw,freqs,vis):
-    tclean( vis=v,field=target,spw=s,datacolumn='corrected',imagename=f'targetspw{f}',imsize=imsize,cell=c,gridder='standard',pblimit=-1e-12,deconvolver='hogbom',weighting='briggs',robust=0,niter=3000,gain=0.1)
+    tclean( vis=v,field=target,spw=s,datacolumn='corrected',imagename=f'targetspw{f}',imsize=imsize,cell=c,gridder='standard',pblimit=-1e-12,deconvolver='hogbom',weighting='briggs',robust=0,niter=8000,gain=0.1,pbcor=True)
 
-
-#     if spw == '2GHz':
-#         cell="0.4arcsec"
-#         imsize=8192
-#         tclean( vis=visname,field=gfield,datacolumn='corrected',imagename=f'gaincalspw{spw}',imsize=imsize,cell=cell,gridder='standard',pblimit=-1e-12,deconvolver='hogbom',weighting='briggs',robust=0,niter=1000,gain=0.1)
-#         tclean( vis=visname,field=target,datacolumn='corrected',imagename=f'targetspw{spw}',imsize=imsize,cell=cell,gridder='standard',pblimit=-1e-12,deconvolver='hogbom',weighting='briggs',robust=0,niter=3000,gain=0.1)
-#     elif spw == '5GHz':
-#         cell="0.2arcsec"
-#         imsize=8192
-#         tclean( vis=visname,field=gfield,datacolumn='corrected',imagename=f'gaincalspw{spw}',imsize=imsize,cell=cell,gridder='standard',pblimit=-1e-12,deconvolver='hogbom',weighting='briggs',robust=0,niter=1000,gain=0.1)
-#         tclean( vis=visname,field=target,datacolumn='corrected',imagename=f'targetspw{spw}',imsize=imsize,cell=cell,gridder='standard',pblimit=-1e-12,deconvolver='hogbom',weighting='briggs',robust=0,niter=3000,gain=0.1)
-#     elif spw=='9GHz':
-#         cell="0.1arcsec"
-#         imsize=8192
-#         tclean( vis=visname,field=gfield,datacolumn='corrected',imagename=f'gaincalspw{spw}',imsize=imsize,cell=cell,gridder='standard',pblimit=-1e-12,deconvolver='hogbom',weighting='briggs',robust=0,niter=1000,gain=0.1)
-#         tclean( vis=visname,field=target,datacolumn='corrected',imagename=f'targetspw{spw}',imsize=imsize,cell=cell,gridder='standard',pblimit=-1e-12,deconvolver='hogbom',weighting='briggs',robust=0,niter=3000,gain=0.1)
-#     elif spw=='19GHz':
-#         cell='0.06arcsec'
-#         imsize=5120
-#         for subspw,imname in zip(['0~1','0','1'],['19GHz','17GHz','21GHz']):
-#             tclean( vis=visname,field=gfield,spw=subspw,datacolumn='corrected',imagename=f'gaincalspw{imname}',imsize=imsize,cell=cell,gridder='standard',pblimit=-1e-12,deconvolver='hogbom',weighting='briggs',robust=0,niter=1000,gain=0.1)
-#             tclean( vis=visname,field=target,spw=subspw,datacolumn='corrected',imagename=f'targetspw{imname}',imsize=imsize,cell=cell,gridder='standard',pblimit=-1e-12,deconvolver='hogbom',weighting='briggs',robust=0,niter=3000,gain=0.1)
-   #  elif spw=='34GHz':
-   #      cell='0.04arcsec'
-   #      imsize=5120
-   #      for subspw,imname in zip(['0~1','0','1'],['34GHz','33GHz','35GHz']):
-   #          tclean( vis=visname,field=gfield,spw=subspw,datacolumn='corrected',imagename=f'gaincalspw{imname}',imsize=imsize,cell=cell,gridder='standard',pblimit=-1e-12,deconvolver='hogbom',weighting='briggs',robust=0,niter=1000,gain=0.1)
-   #          tclean( vis=visname,field=target,spw=subspw,datacolumn='corrected',imagename=f'targetspw{imname}',imsize=imsize,cell=cell,gridder='standard',pblimit=-1e-12,deconvolver='hogbom',weighting='briggs',robust=0,niter=3000,gain=0.1)
-
-
- 
-  #   msmd.close()
-  #   msmd.open(visname)
-  #   scans = msmd.scansforfield(target)
-  #   msmd.close()
-    
-  #   for i in range(0,len(scans),4):
-  #       s = f'{scans[i]}~{scans[min(i+4,len(scans)-1)]}'
-  #       tclean( vis=visname,field=target,datacolumn='corrected',imagename=f'targetspw{spw}scan{s}',scan=s,imsize=5120,cell='4arcsec',gridder='standard',pblimit=-1e-12,deconvolver='hogbom',weighting='natural',niter=1000,gain=0.1)
 
