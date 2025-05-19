@@ -21,34 +21,16 @@ for f in glob.glob('34GHz*.ms*'):
 
 # split(origvis, spw='0~1', outputvis = '19GHz.ms',datacolumn='ALL')
 
-split(origvis, spw='0', outputvis = '5GHz.ms',datacolumn='ALL')
-# vis = '5GHz.ms'
-# for i,c in enumerate(range(0,2048,1024)):
-#     split(vis='5GHz.ms', spw=f'0:{c}~{c+1023}', datacolumn='ALL',outputvis=f'5GHzspw{i}.ms')
-# shutil.rmtree('5GHz.ms')
-# vis = [f"5GHzspw{i}.ms" for i in range(2)]
-# concat(vis,concatvis='5GHz.ms')
-# for v in vis:
-#     shutil.rmtree(v)
+split(origvis, spw='2', outputvis = '5GHz.ms',datacolumn='ALL')
+vis = '5GHz.ms'
 
-split(origvis, spw='1', outputvis = '9GHz.ms',datacolumn='ALL')
-# vis = '9GHz.ms'
-# for i,c in enumerate(range(0,2048,1024)):
-#     split(vis='9GHz.ms', spw=f'0:{c}~{c+1023}', datacolumn='ALL',outputvis=f'9GHzspw{i}.ms')
-# shutil.rmtree('9GHz.ms')
-# vis = [f"9GHzspw{i}.ms" for i in range(2)]
-# concat(vis,concatvis='9GHz.ms')
-# for v in vis:
-#     shutil.rmtree(v)
+
+split(origvis, spw='3', outputvis = '9GHz.ms',datacolumn='ALL')
+vis = '9GHz.ms'
+
+
 # split(origvis, spw='4', outputvis = '2GHz.ms',datacolumn='ALL')
-# vis = '2GHz.ms'
-# for i,c in enumerate(range(0,2048,1024)):
-#     split(vis='2GHz.ms', spw=f'0:{c}~{c+1023}', datacolumn='ALL',outputvis=f'2GHzspw{i}.ms')
-# shutil.rmtree('2GHz.ms')
-# vis = [f"2GHzspw{i}.ms" for i in range(2)]
-# concat(vis,concatvis='2GHz.ms')
-# for v in vis:
-#     shutil.rmtree(v)
+
 
 
 
@@ -74,8 +56,14 @@ for visname in ['5GHz.ms','9GHz.ms']:
     msmd.open(origvis)
     nchan = len(msmd.chanfreqs(0))
     referenceant = msmd.antennanames()[0]
+<<<<<<< HEAD
     target = "GRB230911C"
     gfield = "1458-391"
+=======
+    # Change field names
+    target = "GRB240205B"
+    gfield = "2333-528"
+>>>>>>> 8d453059224296957dc14eefc2923d3566751abf
     fluxfield = "1934-638"
     if spw=='19GHz':
         bfield='1921-293'
@@ -283,7 +271,7 @@ for visname in ['5GHz.ms','9GHz.ms']:
             extendflags=False, timedevscale=5.0, freqdevscale=5.0,
             extendpols=False, growaround=False, action="apply", flagbackup=True,
             overwrite=True, writeflags=True)
-    for i in range(5): 
+    for i in range(3): 
     # now flag using 'rflag' option
         flagdata(vis=visname, mode="rflag", datacolumn="corrected",
                 field=target, timecutoff=5.0, freqcutoff=5.0, timefit="poly",
@@ -292,7 +280,7 @@ for visname in ['5GHz.ms','9GHz.ms']:
                 extendpols=False, growaround=False, flagneartime=False,
                 flagnearfreq=False, action="apply", flagbackup=True, overwrite=True,
                 writeflags=True, ntime='scan')
-    for i in range(5): 
+    for i in range(3): 
     # now flag using 'rflag' option
         flagdata(vis=visname, mode="rflag", datacolumn="corrected",
                 field=target, timecutoff=4.0, freqcutoff=4.0, timefit="poly",
@@ -301,7 +289,7 @@ for visname in ['5GHz.ms','9GHz.ms']:
                 extendpols=False, growaround=False, flagneartime=False,
                 flagnearfreq=False, action="apply", flagbackup=True, overwrite=True,
                 writeflags=True, ntime='scan')
-    for i in range(5): 
+    for i in range(3): 
     # now flag using 'rflag' option
         flagdata(vis=visname, mode="rflag", datacolumn="corrected",
                 field=target, timecutoff=3.0, freqcutoff=3.0, timefit="poly",
@@ -310,6 +298,7 @@ for visname in ['5GHz.ms','9GHz.ms']:
                 extendpols=False, growaround=False, flagneartime=False,
                 flagnearfreq=False, action="apply", flagbackup=True, overwrite=True,
                 writeflags=True, ntime='scan')
+# Change resolution, this is for an extended config, if in more compact config, try doing 10x bigger resolution
 
 cell=["2arcsec","2arcsec"]
 imsize=5120
