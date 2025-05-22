@@ -56,14 +56,9 @@ for visname in ['5GHz.ms','9GHz.ms']:
     msmd.open(origvis)
     nchan = len(msmd.chanfreqs(0))
     referenceant = msmd.antennanames()[0]
-<<<<<<< HEAD
-    target = "GRB230911C"
-    gfield = "1458-391"
-=======
     # Change field names
     target = "GRB240205B"
     gfield = "2333-528"
->>>>>>> 8d453059224296957dc14eefc2923d3566751abf
     fluxfield = "1934-638"
     if spw=='19GHz':
         bfield='1921-293'
