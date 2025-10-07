@@ -12,8 +12,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 start_epoch = datetime.datetime(1858, 11, 17, 00, 00, 00, 00)
-trigger = datetime.datetime(2024, 2, 5, 22, 15, 8, 00)
-cell = '4arcsec'
+trigger = start_epoch
 parser = argparse.ArgumentParser()
 parser.add_argument("--field",required=True, type=str)
 parser.add_argument("--msname",required=True,type=str)
@@ -23,9 +22,10 @@ parser.add_argument("--timeslices",type=int,default=1)
 parser.add_argument("--imsize",type=int,default=2560, help="imsize used in tclean")
 parser.add_argument("--subrounds",type=int, default=1, help="Number of rounds of subtraction")
 parser.add_argument("--scan",action="store_true", help="uvfit each scan")
+parser.add_argument("--cell")
 
 args = parser.parse_args()
-
+cell = args.cell
 target = args.field
 if args.msname[-1]=='/':
     visname = args.msname[:-1]
@@ -118,6 +118,10 @@ if __name__=="__main__":
     lastvis = visname
     for iteration in range(1,args.subrounds+1):
         splitvis = "target_round"+str(iteration)+".ms"
+        try:
+            split(vis=lastvis, outputvis=splitvis, field=target,antenna="!CA06")
+        except RuntimeError:
+            split(vis=lastvis, outputvis=splitvis, field=target,antenna="!CA06",datacolumn="DATA")
         split(vis=lastvis, outputvis=splitvis, field=target,antenna="!CA06")
         curimage = myimage+"_round"+str(iteration)
         curmasked = maskedim+"_round"+str(iteration)
