@@ -21,11 +21,11 @@ for f in glob.glob('34GHz*.ms*'):
 
 # split(origvis, spw='0~1', outputvis = '19GHz.ms',datacolumn='ALL')
 
-split(origvis, spw='2', outputvis = '5GHz.ms',datacolumn='ALL')
+split(origvis, spw='0~14', outputvis = '5GHz.ms',datacolumn='ALL')
 vis = '5GHz.ms'
 
 
-split(origvis, spw='3', outputvis = '9GHz.ms',datacolumn='ALL')
+split(origvis, spw='15~29', outputvis = '9GHz.ms',datacolumn='ALL')
 vis = '9GHz.ms'
 
 
@@ -57,13 +57,13 @@ for visname in ['5GHz.ms','9GHz.ms']:
     nchan = len(msmd.chanfreqs(0))
     referenceant = msmd.antennanames()[0]
     # Change field names
-    target = "GRB240205B"
-    gfield = "2333-528"
-    fluxfield = "1934-638"
+    target = "GRB251001B"
+    gfield = "0250-225"
+    fluxfield = "0823-500"
     if spw=='19GHz':
         bfield='1921-293'
     else:
-        bfield = "1934-638"
+        bfield = "0823-500"
     if bfield!=fluxfield:
         calfields = [bfield,gfield,fluxfield]
         allfields= [bfield,gfield,target,fluxfield]
@@ -81,6 +81,10 @@ for visname in ['5GHz.ms','9GHz.ms']:
     polfilebase = f'polspw{spw}.D'
     if fluxfield in ['J0408-6545','0408-6545']:
         setjy(vis=visname,field=fluxfield,scalebychan=True, standard="manual",fluxdensity=[17.066,0.0,0.0,0.0],spix=[-1.179],reffreq="1284MHz")
+    elif fluxfield=="0823-500" and visname=="5GHz.ms":
+        setjy(vis=visname,field=fluxfield,scalebychan=True, standard="manual",fluxdensity=[2.759,0.0,0.0,0.0],spix=[-1.234],reffreq="5500MHz")
+    elif fluxfield=="0823-500" and visname=="9GHz.ms":
+        setjy(vis=visname,field=fluxfield,scalebychan=True, standard="manual",fluxdensity=[17.066,0.0,0.0,0.0],spix=[-1.79],reffreq="9000MHz")
     else:
         setjy(vis=visname,field=fluxfield,scalebychan=True,standard="Stevens-Reynolds 2016")
     # flagdata(vis=visname, mode='manual',scan='0,44')
@@ -295,8 +299,8 @@ for visname in ['5GHz.ms','9GHz.ms']:
                 writeflags=True, ntime='scan')
 # Change resolution, this is for an extended config, if in more compact config, try doing 10x bigger resolution
 
-cell=["2arcsec","2arcsec"]
-imsize=5120
+cell=["0.25arcsec","0.15arcsec"]
+imsize=8192
 spw=["",""]
 freqs = ["5.5GHz","9.0GHz"]
 vis=["5GHz.ms","9GHz.ms"]
