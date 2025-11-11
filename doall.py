@@ -84,7 +84,7 @@ for visname in ['5GHz.ms','9GHz.ms']:
     elif fluxfield=="0823-500" and visname=="5GHz.ms":
         setjy(vis=visname,field=fluxfield,scalebychan=True, standard="manual",fluxdensity=[2.759,0.0,0.0,0.0],spix=[-1.234],reffreq="5500MHz")
     elif fluxfield=="0823-500" and visname=="9GHz.ms":
-        setjy(vis=visname,field=fluxfield,scalebychan=True, standard="manual",fluxdensity=[17.066,0.0,0.0,0.0],spix=[-1.79],reffreq="9000MHz")
+        setjy(vis=visname,field=fluxfield,scalebychan=True, standard="manual",fluxdensity=[1.31,0.0,0.0,0.0],spix=[-1.79],reffreq="9000MHz")
     else:
         setjy(vis=visname,field=fluxfield,scalebychan=True,standard="Stevens-Reynolds 2016")
     # flagdata(vis=visname, mode='manual',scan='0,44')
@@ -133,40 +133,40 @@ for visname in ['5GHz.ms','9GHz.ms']:
     append=False
     gaincal(vis=visname, caltable = pregfile, field = bfield, refant = referenceant,
                 minblperant = minbaselines, solnorm = False,  gaintype = 'G',
-                solint = 60, combine = '', calmode='p',
+                solint = 120, combine = 'spw', calmode='p',
                 parang = False,append = append)
     plotms(vis=pregfile, xaxis='time', yaxis='phase', coloraxis='corr', 
                 field=bfield, iteraxis='antenna',plotrange=[-1,-1,-180,180],
                 showgui= False, gridrows=3, gridcols=2, plotfile='initialgain.jpg')
     gaincal(vis=visname, caltable = kfile, field = bfield, refant = referenceant,
                 minblperant = minbaselines, solnorm = False,  gaintype = 'K',
-                solint = 60, combine = '', parang = False,append = False)
+                solint = 120, combine = 'spw', parang = False,append = False)
     bandpass(vis=visname, caltable = bfile,
             field = bfield, refant = referenceant,
-            minblperant = minbaselines, solnorm = False,  solint = 60,
+            minblperant = minbaselines, solnorm = False,  solint = 120,
             combine = '', bandtype = 'B', fillgaps = 4,
             gaintable = [kfile], gainfield = bfield,
             parang = False, append = append)
     gaincal(vis=visname, caltable = kxfile, field=gfield, refant=referenceant,
-            gaintype='KCROSS', smodel=[1.,0.,1.,0.], solint='inf', combine='scan',
+            gaintype='KCROSS', smodel=[1.,0.,1.,0.], solint='inf', combine='spw,scan',
             minblperant=minbaselines, minsnr=0, gaintable=[kfile,bfile],gainfield=[bfield,bfield])
     gaincal(vis=visname, caltable = gfile,
             field = fluxfield, refant = referenceant,
             minblperant = minbaselines, solnorm = False,  gaintype = 'G',
-            solint = 60, combine = '', calmode='ap',
+            solint = 120, combine = 'spw', calmode='ap',
             gaintable=[kfile,bfile,kxfile],gainfield=[bfield,bfield,gfield],
             parang = False, append = False)
     if fluxfield!=bfield:
         gaincal(vis=visname, caltable = gfile,
                 field = bfield, refant = referenceant,
                 minblperant = minbaselines, solnorm = False,  gaintype = 'G',
-                solint = 60, combine = '', calmode='ap',
+                solint = 120, combine = 'spw', calmode='ap',
                 gaintable=[kfile,bfile,kxfile],gainfield=[bfield,bfield,gfield],
                 parang = False, append = True)
     gaincal(vis=visname, caltable = gfile,
             field = gfield, refant = referenceant,
             minblperant = minbaselines, solnorm = False,  gaintype = 'G',
-            solint = 60, combine = '', calmode='ap',
+            solint = 120, combine = 'spw', calmode='ap',
             gaintable=[kfile,bfile,kxfile],gainfield=[bfield,bfield,gfield],
             parang = False, append = True)
     from casarecipes.atcapolhelpers import qufromgain
@@ -185,34 +185,34 @@ for visname in ['5GHz.ms','9GHz.ms']:
     polfile2 = f'{polfilebase}1'
     gaincal(vis=visname, caltable = pregfile2, field = bfield, refant = referenceant,
                 minblperant = minbaselines, solnorm = False,  gaintype = 'G',
-                solint = 60, combine = '', calmode='p',
+                solint = 120, combine = 'spw', calmode='p',
                 parang = False,append = append, gaintable=[bfile,kxfile,gfile,polfile])
     plotms(vis=pregfile2, xaxis='time', yaxis='phase', coloraxis='corr', 
                 field=bfield, iteraxis='antenna',plotrange=[-1,-1,-180,180],
                 showgui= False, gridrows=3, gridcols=2, plotfile='initialgain2.jpg')
     bandpass(vis=visname, caltable = bfile2,
             field = bfield, refant = referenceant,
-            minblperant = minbaselines, solnorm = False,  solint = 60,
-            combine = '', bandtype = 'B', fillgaps = 4,
+            minblperant = minbaselines, solnorm = False,  solint = 120,
+            combine = 'spw', bandtype = 'B', fillgaps = 4,
             gaintable = [gfile,polfile], gainfield = [bfield,bfield],
             parang = False, append = append)
     gaincal(vis=visname, caltable = gfile2,
             field = fluxfield, refant = referenceant,
             minblperant = minbaselines, solnorm = False,  gaintype = 'G',
-            solint = 60, combine = '', calmode='ap',
+            solint = 120, combine = 'spw', calmode='ap',
             gaintable=bfile2,
             parang = False, append = False)
     if fluxfield!=bfield:
         gaincal(vis=visname, caltable = gfile2,
                 field = bfield, refant = referenceant,
                 minblperant = minbaselines, solnorm = False,  gaintype = 'G',
-                solint = 60, combine = '', calmode='ap',
+                solint = 120, combine = 'spw', calmode='ap',
                 gaintable=bfile2,
                 parang = False, append = True)
     gaincal(vis=visname, caltable = gfile2,
             field = gfield, refant = referenceant,
             minblperant = minbaselines, solnorm = False,  gaintype = 'G',
-            solint = 60, combine = '', calmode='ap',
+            solint = 120, combine = 'spw', calmode='ap',
             gaintable=bfile2,smodel=smodel,
             parang = False, append = True)
     polcal(vis=visname,caltable=polfile2,field=bfield,refant=referenceant,gaintable=[bfile2,gfile2],poltype='D',solint='inf')
